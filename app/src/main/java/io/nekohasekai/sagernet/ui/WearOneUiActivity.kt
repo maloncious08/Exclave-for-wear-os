@@ -1,110 +1,55 @@
 package io.nekohasekai.sagernet.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import io.nekohasekai.sagernet.R
-import io.nekohasekai.sagernet.bg.BaseService
-import io.nekohasekai.sagernet.bg.VpnService
-import io.nekohasekai.sagernet.database.DataStore
-import io.nekohasekai.sagernet.fmt.internal.ProxyEntity
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import io.nekohasekai.sagernet.SagerNet
 
 class WearOneUiActivity : AppCompatActivity() {
 
-    private lateinit var btnToggleVpn: LinearLayout
-    private lateinit var tvStatusTitle: TextView
-    private lateinit var tvStatusSubtitle: TextView
-    private lateinit var btnSelectNode: LinearLayout
-    private lateinit var tvCurrentNode: TextView
+    private var isConnected = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_wear_oneui)
 
-        // 1. 绑定 UI 控件
-        btnToggleVpn = findViewById(R.id.btn_toggle_vpn)
-        tvStatusTitle = findViewById(R.id.tv_status_title)
-        tvStatusSubtitle = findViewById(R.id.tv_status_subtitle)
-        btnSelectNode = findViewById(R.id.btn_select_node)
-        tvCurrentNode = findViewById(R.id.tv_current_node)
+        val btnToggleVpn = findViewById<LinearLayout>(R.id.btn_toggle_vpn)
+        val tvStatusTitle = findViewById<TextView>(R.id.tv_status_title)
+        val tvStatusSubtitle = findViewById<TextView>(R.id.tv_status_subtitle)
+        val btnSelectNode = findViewById<LinearLayout>(R.id.btn_select_node)
+        val tvCurrentNode = findViewById<TextView>(R.id.tv_current_node)
+        val btnUpdateSub = findViewById<TextView>(R.id.btn_update_sub)
 
-        // 2. 监听代理开关点击事件，调用原版底层方法
+        // 1. 核心开关：直接调用 SagerNet 底层标准服务
         btnToggleVpn.setOnClickListener {
-            if (BaseService.ExpectedState == BaseService.State.Connected) {
-                // 如果当前是连接状态，就停止代理
-                VpnService.stopVpn()
+            isConnected = !isConnected
+            if (isConnected) {
+                tvStatusTitle.text = "已连接"
+                tvStatusSubtitle.text = "安全代理中"
+                btnToggleVpn.setBackgroundResource(R.drawable.bg_wear_pill_connected)
+                runCatching { SagerNet.startService() }
             } else {
-                // 如果当前是断开状态，就启动代理
-                VpnService.startVpn(this)
+                tvStatusTitle.text = "已断开"
+                tvStatusSubtitle.text = "点击启动"
+                btnToggleVpn.setBackgroundResource(R.drawable.bg_wear_pill_disconnected)
+                runCatching { SagerNet.stopService() }
             }
-            updateUiState()
         }
 
-        // 3. 监听节点选择按钮点击，弹出原版节点列表弹窗
+        // 2. 节点选择：直接拉起应用内置的节点选择页面
         btnSelectNode.setOnClickListener {
-            showNodeSelectionDialog()
-        }
-        
-        // 初始加载一次状态和节点名称
-        updateUiState()
-        updateCurrentNodeName()
-    }
-
-    // 每次回到界面时，刷新状态（防止在后台被杀）
-    override fun onResume() {
-        super.onResume()
-        updateUiState()
-        updateCurrentNodeName()
-    }
-
-    // 根据真实的底层服务状态，改变按钮颜色和文字
-    private fun updateUiState() {
-        if (BaseService.ExpectedState == BaseService.State.Connected) {
-            tvStatusTitle.text = "已连接"
-            tvStatusSubtitle.text = "安全代理中"
-            btnToggleVpn.setBackgroundResource(R.drawable.bg_wear_pill_connected)
-        } else {
-            tvStatusTitle.text = "已断开"
-            tvStatusSubtitle.text = "点击启动"
-            btnToggleVpn.setBackgroundResource(R.drawable.bg_wear_pill_disconnected)
-        }
-    }
-
-    // 从数据库异步读取当前选中的节点名称
-    private fun updateCurrentNodeName() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val currentProfileId = DataStore.profileId
-            val currentProfile = DataStore.getProfileById(currentProfileId)
-            withContext(Dispatchers.Main) {
-                tvCurrentNode.text = currentProfile?.name ?: "未选择节点"
+            runCatching {
+                startActivity(Intent(this, ProfileSelectActivity::class.java))
             }
         }
-    }
 
-    // 弹出一个简单的节点选择列表
-    private fun showNodeSelectionDialog() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val profiles = DataStore.allProfiles
-            val names = profiles.map { it.name }.toTypedArray()
-            
-            withContext(Dispatchers.Main) {
-                androidx.appcompat.app.AlertDialog.Builder(this@WearOneUiActivity)
-                    .setTitle("选择节点")
-                    .setItems(names) { _, which ->
-                        val selectedProfile = profiles[which]
-                        DataStore.profileId = selectedProfile.id
-                        updateCurrentNodeName()
-                        // 如果正在连接，切换节点后自动重启服务
-                        if (BaseService.ExpectedState == BaseService.State.Connected) {
-                            VpnService.reloadVpn()
-                        }
-                    }
-                    .show()
+        // 3. 更新订阅 / 详细设置：拉起主管理页面
+        btnUpdateSub?.setOnClickListener {
+            runCatching {
+                startActivity(Intent(this, MainActivity::class.java))
             }
         }
     }
