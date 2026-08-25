@@ -9,7 +9,7 @@ plugins {
 setupApp()
 
 android {
-    namespace = "io.nekohasekai.sagernet"
+    namespace = "io.exclave.wearos"
 }
 
 ksp {
