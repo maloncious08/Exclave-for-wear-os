@@ -83,6 +83,12 @@ class MainActivity : ThemedActivity(),
         }
     }
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val config = newBase.resources.configuration
+        config.densityDpi = (newBase.resources.displayMetrics.densityDpi * 0.76f).toInt()
+        super.attachBaseContext(newBase.createConfigurationContext(config))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
