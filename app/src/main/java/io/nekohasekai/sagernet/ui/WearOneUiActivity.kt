@@ -8,8 +8,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
-import io.nekohasekai.sagernet.database.DataStore
-import io.nekohasekai.sagernet.database.SagerDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,7 +37,9 @@ class WearOneUiActivity : AppCompatActivity() {
         btnPingTest = findViewById(R.id.btn_ping_test)
         btnOpenSettings = findViewById(R.id.btn_open_settings)
 
-        // 1. 核心开关
+        tvCurrentNode.text = "点击切换节点"
+
+        // 1. 核心代理开关
         btnToggleVpn.setOnClickListener {
             isConnected = !isConnected
             if (isConnected) {
@@ -55,7 +55,7 @@ class WearOneUiActivity : AppCompatActivity() {
             }
         }
 
-        // 2. 选择节点
+        // 2. 选择节点：拉起内置节点选择器
         btnSelectNode.setOnClickListener {
             runCatching {
                 startActivity(Intent(this, ProfileSelectActivity::class.java))
@@ -71,26 +71,6 @@ class WearOneUiActivity : AppCompatActivity() {
         btnOpenSettings.setOnClickListener {
             runCatching {
                 startActivity(Intent(this, MainActivity::class.java))
-            }
-        }
-
-        refreshNodeDisplay()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        refreshNodeDisplay()
-    }
-
-    private fun refreshNodeDisplay() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val name = runCatching {
-                val currentId = DataStore.selectedProfile
-                SagerDatabase.profileDao.getById(currentId)?.name
-            }.getOrNull()
-
-            withContext(Dispatchers.Main) {
-                tvCurrentNode.text = if (!name.isNullOrBlank()) name else "点击选择节点"
             }
         }
     }
